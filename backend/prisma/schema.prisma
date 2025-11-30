@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Model pentru Utilizatori
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String   // Hash-uit cu bcrypt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relație: un user are multe records
+  records   HealthRecord[]
+}
+
+// Model pentru Înregistrări Zilnice de Sănătate
+model HealthRecord {
+  id         Int      @id @default(autoincrement())
+  date       DateTime @default(now())
+  weight     Float?   // kg (nullable = opțional)
+  steps      Int?     // număr pași
+  sleepHours Float?   // ore de somn
+  heartRate  Int?     // bătăi/minut
+  notes      String?  // notițe opționale
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  // Relație: fiecare record aparține unui user
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Index pentru căutări rapide
+  @@index([userId, date])
+}

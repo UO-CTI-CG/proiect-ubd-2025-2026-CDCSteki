@@ -3,6 +3,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import cors from "cors";
 import dotenv from "dotenv";
+import records from "../routes/records.js";
 
 dotenv.config();
 
@@ -18,14 +19,7 @@ app.use(helmet()); //helmet is a security middleware that helps you protect your
 
 app.use(morgan("dev"));     
 
-app.get("/api/records", (req, res) => {
-    //GET ALL RECORDS FORM DB
-
-    res.status(200).json({
-        sucess: true,
-        data: [] //replace with actual data from DB
-    })
-});
+app.use("/api/records", records)
 
 app.listen(3000, () => {
     console.log("Server is running on port " + PORT);
