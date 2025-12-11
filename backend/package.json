@@ -4,7 +4,15 @@
   "description": "Fiecare student va realiza **un proiect individual**, care constă în dezvoltarea unei **aplicații funcționale** și redactarea unei **lucrări (referat)** asociate.  \r Scopul proiectului este de a aplica cunoștințele teoretice în dezvoltarea unei aplicații software reale, cu accent pe analiză, proiectare și implementare.",
   "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "script": "ts-node src/lib/scripts.ts",
+    "db:seed": "ts-node src/lib/scripts.ts seed",
+    "db:clear": "ts-node src/lib/scripts.ts clear",
+    "db:stats": "ts-node src/lib/scripts.ts stats"
   },
   "repository": {
     "type": "git",
@@ -21,15 +29,25 @@
   "dependencies": {
     "@arcjet/node": "^1.0.0-beta.15",
     "@neondatabase/serverless": "^1.0.2",
+    "@prisma/adapter-pg": "^7.1.0",
+    "@prisma/client": "^7.1.0",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "i": "^0.3.7",
+    "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
-    "prisma": "^7.0.1"
+    "pg": "^8.16.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.15.6",
+    "nodemon": "^3.1.11",
+    "prisma": "^7.1.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }
