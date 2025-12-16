@@ -111,6 +111,24 @@ router.delete('/:id', deleteRecord);
 router.post('/:id/vitals', addVitalSign);
 
 /**
+ * @route   PUT /api/records/:recordId/vitals/:vitalId
+ * @desc    Actualizează un vital sign existent
+ * @access  Private
+ * @params  recordId (number), vitalId (number)
+ * @body    { 
+ *            timeOfDay?, heartRate?, bloodPressureSystolic?, bloodPressureDiastolic?,
+ *            temperature?, oxygenSaturation?, notes?
+ *          }
+ * @returns { message, vitalSign }
+ * 
+ * Exemplu:
+ * PUT /api/records/5/vitals/12
+ * { "heartRate": 75, "notes": "After workout" }
+ */
+import { updateVitalSign } from '../controllers/recordController.js';
+router.put('/:recordId/vitals/:vitalId', updateVitalSign);
+
+/**
  * @route   DELETE /api/records/:recordId/vitals/:vitalId
  * @desc    Șterge un vital sign specific
  * @access  Private

@@ -6,28 +6,20 @@ import prisma from '../lib/prisma.ts'; // ← .js obligatoriu în ES Modules!
  */
 const getAllRecords = async (req, res) => {
   try {
-    const userId = req.user.userId; // din middleware
+    const userId = req.user.userId;
     const { limit = 30, sortBy = 'date' } = req.query;
 
     const records = await prisma.healthRecord.findMany({
       where: { userId },
-      orderBy: { [sortBy]: 'desc' }, // desc = de la cel mai recent
+      orderBy: { [sortBy]: 'desc' },
       take: parseInt(limit),
       include: {
+        // PĂSTRĂM INCLUDE pentru a aduce vitalSigns, dar ELIMINĂM SELECT
         vitalSigns: {
-          orderBy: { timestamp: 'asc' } // Ordonează vital signs per zi
+          orderBy: { timestamp: 'asc' }
         }
-      },
-      select: {
-        id: true,
-        date: true,
-        weight: true,
-        steps: true,
-        sleepHours: true,
-        notes: true,
-        createdAt: true,
-        vitalSigns: true
-      }
+      } 
+      // Am eliminat blocul select: {...}
     });
 
     res.json({
@@ -37,6 +29,7 @@ const getAllRecords = async (req, res) => {
 
   } catch (error) {
     console.error('Get records error:', error);
+    // Dacă eroarea persistă (deși nu ar trebui), vei vedea mesajul
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -161,7 +154,7 @@ const createRecord = async (req, res) => {
  * UPDATE RECORD - Modifică înregistrare existentă
  * PUT /api/records/:id
  * Body: { weight?, steps?, sleepHours?, notes? }
- * Note: Pentru a modifica vital signs, folosește endpoints separate
+ * Note: Pentru a modifica vital signs, folosesc endpoint separat.
  */
 const updateRecord = async (req, res) => {
   try {
@@ -419,6 +412,58 @@ const addVitalSign = async (req, res) => {
 };
 
 /**
+ * UPDATE VITAL SIGN - Modifică înregistrare existentă
+ * PUT /api/records/recordID/vitals/:vitalId
+ * body: { timeOfDay?, heartRate?, bloodPressureSystolic?, bloodPressureDiastolic?, temperature?, oxygenSaturation?, notes? }
+ */
+const updateVitalSign = async (req, res) => {
+  try {
+    const { recordId, vitalId } = req.params;
+    const userId = req.user.userId;
+    const { timeOfDay, heartRate, bloodPressureSystolic, bloodPressureDiastolic, temperature, oxygenSaturation, notes } = req.body;
+
+    // Verifică ownership record
+    const record = await prisma.healthRecord.findFirst({
+      where: { id: parseInt(recordId), userId }
+    });
+
+    if (!record) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    // Verifică dacă vital sign există
+    const vital = await prisma.vitalSign.findFirst({
+      where: { id: parseInt(vitalId), recordId: parseInt(recordId) }
+    });
+
+    if (!vital) {
+      return res.status(404).json({ error: 'Vital sign not found' });
+    }
+
+    // Update vital sign
+    const updatedVital = await prisma.vitalSign.update({
+      where: { id: parseInt(vitalId) },
+      data: {
+        timeOfDay: timeOfDay || vital.timeOfDay,
+        heartRate: heartRate !== undefined ? parseInt(heartRate) : vital.heartRate,
+        bloodPressureSystolic: bloodPressureSystolic !== undefined ? parseInt(bloodPressureSystolic) : vital.bloodPressureSystolic,
+        bloodPressureDiastolic: bloodPressureDiastolic !== undefined ? parseInt(bloodPressureDiastolic) : vital.bloodPressureDiastolic,
+        temperature: temperature !== undefined ? parseFloat(temperature) : vital.temperature,
+        oxygenSaturation: oxygenSaturation !== undefined ? parseInt(oxygenSaturation) : vital.oxygenSaturation,
+        notes: notes !== undefined ? notes : vital.notes
+      }
+    });
+
+    res.json({ message: 'Vital sign updated successfully', updatedVital });
+
+  } catch (error) {
+    console.error('Update vital sign error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+
+/**
  * DELETE VITAL SIGN - Șterge un vital sign
  * DELETE /api/records/:recordId/vitals/:vitalId
  */
@@ -468,5 +513,6 @@ export {
   deleteRecord,
   getStatistics,
   addVitalSign,
+  updateVitalSign,
   deleteVitalSign
 };

@@ -9,7 +9,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import prisma from './lib/prisma.ts'; // ← .js obligatoriu!
+import prisma from './lib/prisma.ts'; 
 
 // Import routes
 import authRoutes from './routes/auth.js';
