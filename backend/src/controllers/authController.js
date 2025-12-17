@@ -1,30 +1,26 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import prisma from '../lib/prisma.ts'; // ← .js obligatoriu în ES Modules!
+import prisma from '../lib/prisma.ts';
 
 /**
- * REGISTER - Creează cont nou
- * POST /api/auth/register
- * Body: { username, email, password }
+ * Înregistrează un utilizator nou
+ * 
+ * @route POST /api/auth/register
+ * @param {Object} req.body - { username, email, password }
+ * @returns {Object} { message, token, user }
  */
 const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    // 1. Validări de bază
     if (!username || !email || !password) {
-      return res.status(400).json({ 
-        error: 'All fields are required' 
-      });
+      return res.status(400).json({ error: 'All fields are required' });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ 
-        error: 'Password must be at least 6 characters' 
-      });
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    // 2. Verifică dacă user-ul există deja
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
@@ -35,15 +31,11 @@ const register = async (req, res) => {
     });
 
     if (existingUser) {
-      return res.status(409).json({ 
-        error: 'Username or email already exists' 
-      });
+      return res.status(409).json({ error: 'Username or email already exists' });
     }
 
-    // 3. Hash-uiește parola (IMPORTANT - nu salvăm parola plain!)
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4. Creează user-ul în DB
     const user = await prisma.user.create({
       data: {
         username,
@@ -52,14 +44,12 @@ const register = async (req, res) => {
       }
     });
 
-    // 5. Generează JWT token
     const token = jwt.sign(
       { userId: user.id }, 
       process.env.JWT_SECRET,
-      { expiresIn: '7d' } // token-ul expiră după 7 zile
+      { expiresIn: '7d' }
     );
 
-    // 6. Returnează succes (NU returnăm parola!)
     res.status(201).json({
       message: 'User created successfully',
       token,
@@ -72,56 +62,45 @@ const register = async (req, res) => {
 
   } catch (error) {
     console.error('Register error:', error);
-    res.status(500).json({ 
-      error: 'Server error during registration' 
-    });
+    res.status(500).json({ error: 'Server error during registration' });
   }
 };
 
 /**
- * LOGIN - Autentificare
- * POST /api/auth/login
- * Body: { email, password }
+ * Autentifică un utilizator existent
+ * 
+ * @route POST /api/auth/login
+ * @param {Object} req.body - { email, password }
+ * @returns {Object} { message, token, user }
  */
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Validări
     if (!email || !password) {
-      return res.status(400).json({ 
-        error: 'Email and password are required' 
-      });
+      return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // 2. Caută user-ul după email
     const user = await prisma.user.findUnique({
       where: { email }
     });
 
     if (!user) {
-      return res.status(401).json({ 
-        error: 'Invalid credentials' 
-      });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // 3. Verifică parola (compară cu hash-ul din DB)
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      return res.status(401).json({ 
-        error: 'Invalid credentials' 
-      });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // 4. Generează token
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    // 5. Returnează success
     res.json({
       message: 'Login successful',
       token,
@@ -134,20 +113,19 @@ const login = async (req, res) => {
 
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ 
-      error: 'Server error during login' 
-    });
+    res.status(500).json({ error: 'Server error during login' });
   }
 };
 
 /**
- * GET PROFILE - Informații user curent
- * GET /api/auth/profile
- * Necesită autentificare (token în header)
+ * Obține informații despre utilizatorul autentificat
+ * 
+ * @route GET /api/auth/profile
+ * @requires Authentication
+ * @returns {Object} { user }
  */
 const getProfile = async (req, res) => {
   try {
-    // req.user vine din middleware-ul authenticateToken
     const user = await prisma.user.findUnique({
       where: { id: req.user.userId },
       select: {
@@ -155,23 +133,18 @@ const getProfile = async (req, res) => {
         username: true,
         email: true,
         createdAt: true,
-        // NU selectăm password!
       }
     });
 
     if (!user) {
-      return res.status(404).json({ 
-        error: 'User not found' 
-      });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     res.json({ user });
 
   } catch (error) {
     console.error('Get profile error:', error);
-    res.status(500).json({ 
-      error: 'Server error' 
-    });
+    res.status(500).json({ error: 'Server error' });
   }
 };
 

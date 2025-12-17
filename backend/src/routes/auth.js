@@ -6,41 +6,26 @@ import { authProtection, arcjetMiddleware } from '../config/arcjet.js';
 const router = express.Router();
 
 /**
- * RUTE PENTRU AUTENTIFICARE
- * Base path: /api/auth
- * Toate rutele publice (register, login) au protecție Arcjet
- */
-
-/**
- * @route   POST /api/auth/register
- * @desc    Înregistrare utilizator nou
- * @access  Public
- * @body    { username, email, password }
- * @returns { token, user }
- * @protection Arcjet (rate limiting STRICT + bot detection)
+ * @route POST /api/auth/register
+ * @desc Înregistrare utilizator nou
+ * @access Public
+ * @protection Arcjet (5 requests / 15 min per IP)
  */
 router.post('/register', arcjetMiddleware(authProtection), register);
 
 /**
- * @route   POST /api/auth/login
- * @desc    Autentificare utilizator existent
- * @access  Public
- * @body    { email, password }
- * @returns { token, user }
- * @protection Arcjet (rate limiting STRICT + bot detection)
- * 
- * IMPORTANT: Protecție anti brute-force
- * - Max 5 încercări în 15 minute per IP
- * - Blochează bot-uri automate
+ * @route POST /api/auth/login
+ * @desc Autentificare utilizator
+ * @access Public
+ * @protection Arcjet anti brute-force (5 requests / 15 min per IP)
  */
 router.post('/login', arcjetMiddleware(authProtection), login);
 
 /**
- * @route   GET /api/auth/profile
- * @desc    Obține profilul utilizatorului curent
- * @access  Private (necesită token în header)
- * @header  Authorization: Bearer <token>
- * @returns { user }
+ * @route GET /api/auth/profile
+ * @desc Obține profilul utilizatorului curent
+ * @access Private
+ * @requires Authorization header: Bearer <token>
  */
 router.get('/profile', authenticateToken, getProfile);
 

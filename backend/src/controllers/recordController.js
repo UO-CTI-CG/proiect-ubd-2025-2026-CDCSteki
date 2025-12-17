@@ -1,8 +1,13 @@
-import prisma from '../lib/prisma.ts'; // ← .js obligatoriu în ES Modules!
+import prisma from '../lib/prisma.ts';
 
 /**
- * GET ALL RECORDS - Toate înregistrările user-ului (cu vital signs)
- * GET /api/records?limit=30&sortBy=date
+ * Obține toate înregistrările de sănătate ale utilizatorului autentificat
+ * 
+ * @route GET /api/records
+ * @query {number} limit - Număr maxim de înregistrări (default: 30)
+ * @query {string} sortBy - Câmp de sortare (default: 'date')
+ * @requires Authentication
+ * @returns {Object} { count, records }
  */
 const getAllRecords = async (req, res) => {
   try {
@@ -14,12 +19,10 @@ const getAllRecords = async (req, res) => {
       orderBy: { [sortBy]: 'desc' },
       take: parseInt(limit),
       include: {
-        // PĂSTRĂM INCLUDE pentru a aduce vitalSigns, dar ELIMINĂM SELECT
         vitalSigns: {
           orderBy: { timestamp: 'asc' }
         }
-      } 
-      // Am eliminat blocul select: {...}
+      }
     });
 
     res.json({
@@ -29,14 +32,17 @@ const getAllRecords = async (req, res) => {
 
   } catch (error) {
     console.error('Get records error:', error);
-    // Dacă eroarea persistă (deși nu ar trebui), vei vedea mesajul
     res.status(500).json({ error: 'Server error' });
   }
 };
 
 /**
- * GET ONE RECORD - Un singur record după ID (cu vital signs)
- * GET /api/records/:id
+ * Obține o înregistrare specifică după ID
+ * 
+ * @route GET /api/records/:id
+ * @param {string} id - ID-ul înregistrării
+ * @requires Authentication
+ * @returns {Object} { record }
  */
 const getRecordById = async (req, res) => {
   try {
@@ -46,7 +52,7 @@ const getRecordById = async (req, res) => {
     const record = await prisma.healthRecord.findFirst({
       where: {
         id: parseInt(id),
-        userId // asigură-te că record-ul aparține user-ului curent
+        userId
       },
       include: {
         vitalSigns: {
@@ -68,19 +74,23 @@ const getRecordById = async (req, res) => {
 };
 
 /**
- * CREATE RECORD - Adaugă înregistrare nouă (cu vital signs)
- * POST /api/records
- * Body: { 
- *   date?, weight?, steps?, sleepHours?, notes?,
- *   vitalSigns: [{ timeOfDay, heartRate, bloodPressureSystolic, bloodPressureDiastolic, ... }]
- * }
+ * Creează o înregistrare nouă de sănătate cu semne vitale opționale
+ * 
+ * @route POST /api/records
+ * @body {string} date - Data înregistrării (ISO format)
+ * @body {number} weight - Greutate în kg
+ * @body {number} steps - Număr de pași
+ * @body {number} sleepHours - Ore de somn
+ * @body {string} notes - Notițe opționale
+ * @body {Array} vitalSigns - Array de semne vitale
+ * @requires Authentication
+ * @returns {Object} { message, record }
  */
 const createRecord = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { date, weight, steps, sleepHours, notes, vitalSigns } = req.body;
 
-    // Validări de bază pentru record
     if (weight && weight <= 0) {
       return res.status(400).json({ error: 'Weight must be positive' });
     }
@@ -91,7 +101,6 @@ const createRecord = async (req, res) => {
       return res.status(400).json({ error: 'Sleep hours must be between 0-24' });
     }
 
-    // Validări pentru vital signs (dacă există)
     if (vitalSigns && Array.isArray(vitalSigns)) {
       for (const vital of vitalSigns) {
         if (vital.heartRate && (vital.heartRate < 30 || vital.heartRate > 250)) {
@@ -111,7 +120,6 @@ const createRecord = async (req, res) => {
       }
     }
 
-    // Creează record-ul cu vital signs
     const record = await prisma.healthRecord.create({
       data: {
         userId,
@@ -120,7 +128,6 @@ const createRecord = async (req, res) => {
         steps: steps ? parseInt(steps) : null,
         sleepHours: sleepHours ? parseFloat(sleepHours) : null,
         notes: notes || null,
-        // Creează vital signs asociate (dacă există)
         vitalSigns: vitalSigns && Array.isArray(vitalSigns) ? {
           create: vitalSigns.map(vital => ({
             timestamp: vital.timestamp ? new Date(vital.timestamp) : new Date(),
@@ -151,10 +158,17 @@ const createRecord = async (req, res) => {
 };
 
 /**
- * UPDATE RECORD - Modifică înregistrare existentă
- * PUT /api/records/:id
- * Body: { weight?, steps?, sleepHours?, notes? }
- * Note: Pentru a modifica vital signs, folosesc endpoint separat.
+ * Actualizează o înregistrare existentă (doar daily metrics)
+ * Pentru actualizarea semnelor vitale, folosește endpoint-ul dedicat
+ * 
+ * @route PUT /api/records/:id
+ * @param {string} id - ID-ul înregistrării
+ * @body {number} weight - Greutate în kg
+ * @body {number} steps - Număr de pași
+ * @body {number} sleepHours - Ore de somn
+ * @body {string} notes - Notițe
+ * @requires Authentication
+ * @returns {Object} { message, record }
  */
 const updateRecord = async (req, res) => {
   try {
@@ -162,7 +176,6 @@ const updateRecord = async (req, res) => {
     const userId = req.user.userId;
     const { weight, steps, sleepHours, notes } = req.body;
 
-    // Verifică dacă record-ul există și aparține user-ului
     const existingRecord = await prisma.healthRecord.findFirst({
       where: { id: parseInt(id), userId }
     });
@@ -171,12 +184,10 @@ const updateRecord = async (req, res) => {
       return res.status(404).json({ error: 'Record not found' });
     }
 
-    // Validări
     if (weight && weight <= 0) {
       return res.status(400).json({ error: 'Weight must be positive' });
     }
 
-    // Update doar câmpurile trimise (Prisma ignoră undefined)
     const updatedRecord = await prisma.healthRecord.update({
       where: { id: parseInt(id) },
       data: {
@@ -202,15 +213,18 @@ const updateRecord = async (req, res) => {
 };
 
 /**
- * DELETE RECORD - Șterge înregistrare (cascade șterge și vital signs)
- * DELETE /api/records/:id
+ * Șterge o înregistrare și toate semnele vitale asociate (cascade delete)
+ * 
+ * @route DELETE /api/records/:id
+ * @param {string} id - ID-ul înregistrării
+ * @requires Authentication
+ * @returns {Object} { message }
  */
 const deleteRecord = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.userId;
 
-    // Verifică dacă există și aparține user-ului
     const record = await prisma.healthRecord.findFirst({
       where: { id: parseInt(id), userId }
     });
@@ -219,7 +233,6 @@ const deleteRecord = async (req, res) => {
       return res.status(404).json({ error: 'Record not found' });
     }
 
-    // Șterge (cascade va șterge și vital signs automat)
     await prisma.healthRecord.delete({
       where: { id: parseInt(id) }
     });
@@ -233,16 +246,19 @@ const deleteRecord = async (req, res) => {
 };
 
 /**
- * GET STATISTICS - Statistici (medii, max, min) incluzând vital signs
- * GET /api/records/statistics?period=week
- * period poate fi: week, month, year, all
+ * Calculează statistici pentru înregistrările utilizatorului
+ * Include medii, min, max pentru weight, steps, sleep și vital signs
+ * 
+ * @route GET /api/records/statistics
+ * @query {string} period - Perioada: 'week', 'month', 'year', 'all' (default: 'month')
+ * @requires Authentication
+ * @returns {Object} { period, recordsCount, vitalSignsCount, statistics }
  */
 const getStatistics = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { period = 'month' } = req.query;
 
-    // Calculează data de start în funcție de period
     const now = new Date();
     let startDate;
 
@@ -263,7 +279,6 @@ const getStatistics = async (req, res) => {
         startDate = new Date(now.setMonth(now.getMonth() - 1));
     }
 
-    // Ia toate records din perioada
     const records = await prisma.healthRecord.findMany({
       where: {
         userId,
@@ -282,19 +297,16 @@ const getStatistics = async (req, res) => {
       });
     }
 
-    // Calculează statistici pentru record fields
     const weights = records.map(r => r.weight).filter(w => w !== null);
     const steps = records.map(r => r.steps).filter(s => s !== null);
     const sleepHours = records.map(r => r.sleepHours).filter(s => s !== null);
 
-    // Extrage toate vital signs din toate records
     const allVitalSigns = records.flatMap(r => r.vitalSigns);
     
     const heartRates = allVitalSigns.map(v => v.heartRate).filter(h => h !== null);
     const systolicBP = allVitalSigns.map(v => v.bloodPressureSystolic).filter(b => b !== null);
     const diastolicBP = allVitalSigns.map(v => v.bloodPressureDiastolic).filter(b => b !== null);
 
-    // Statistici per time of day
     const vitalsByTimeOfDay = {
       morning: allVitalSigns.filter(v => v.timeOfDay === 'morning'),
       afternoon: allVitalSigns.filter(v => v.timeOfDay === 'afternoon'),
@@ -302,7 +314,6 @@ const getStatistics = async (req, res) => {
       night: allVitalSigns.filter(v => v.timeOfDay === 'night')
     };
 
-    // Helper function pentru calcule
     const calculateStats = (arr) => {
       if (arr.length === 0) return null;
       return {
@@ -363,9 +374,19 @@ const getStatistics = async (req, res) => {
 };
 
 /**
- * ADD VITAL SIGN - Adaugă un vital sign la un record existent
- * POST /api/records/:id/vitals
- * Body: { timeOfDay, heartRate, bloodPressureSystolic, bloodPressureDiastolic, ... }
+ * Adaugă un semn vital la o înregistrare existentă
+ * 
+ * @route POST /api/records/:id/vitals
+ * @param {string} id - ID-ul înregistrării
+ * @body {string} timeOfDay - Momentul zilei: morning, afternoon, evening, night
+ * @body {number} heartRate - Puls (bpm)
+ * @body {number} bloodPressureSystolic - Tensiune sistolică
+ * @body {number} bloodPressureDiastolic - Tensiune diastolică
+ * @body {number} temperature - Temperatură corporală (°C)
+ * @body {number} oxygenSaturation - Saturație oxigen (%)
+ * @body {string} notes - Notițe opționale
+ * @requires Authentication
+ * @returns {Object} { message, vitalSign }
  */
 const addVitalSign = async (req, res) => {
   try {
@@ -373,7 +394,6 @@ const addVitalSign = async (req, res) => {
     const userId = req.user.userId;
     const { timeOfDay, heartRate, bloodPressureSystolic, bloodPressureDiastolic, temperature, oxygenSaturation, notes } = req.body;
 
-    // Verifică dacă record-ul există și aparține user-ului
     const record = await prisma.healthRecord.findFirst({
       where: { id: parseInt(id), userId }
     });
@@ -382,7 +402,6 @@ const addVitalSign = async (req, res) => {
       return res.status(404).json({ error: 'Record not found' });
     }
 
-    // Validări
     if (!timeOfDay || !['morning', 'afternoon', 'evening', 'night'].includes(timeOfDay)) {
       return res.status(400).json({ error: 'timeOfDay must be: morning, afternoon, evening, or night' });
     }
@@ -412,9 +431,14 @@ const addVitalSign = async (req, res) => {
 };
 
 /**
- * UPDATE VITAL SIGN - Modifică înregistrare existentă
- * PUT /api/records/recordID/vitals/:vitalId
- * body: { timeOfDay?, heartRate?, bloodPressureSystolic?, bloodPressureDiastolic?, temperature?, oxygenSaturation?, notes? }
+ * Actualizează un semn vital existent
+ * 
+ * @route PUT /api/records/:recordId/vitals/:vitalId
+ * @param {string} recordId - ID-ul înregistrării
+ * @param {string} vitalId - ID-ul semnului vital
+ * @body Aceiași parametri ca la addVitalSign (toți opționali)
+ * @requires Authentication
+ * @returns {Object} { message, updatedVital }
  */
 const updateVitalSign = async (req, res) => {
   try {
@@ -422,7 +446,6 @@ const updateVitalSign = async (req, res) => {
     const userId = req.user.userId;
     const { timeOfDay, heartRate, bloodPressureSystolic, bloodPressureDiastolic, temperature, oxygenSaturation, notes } = req.body;
 
-    // Verifică ownership record
     const record = await prisma.healthRecord.findFirst({
       where: { id: parseInt(recordId), userId }
     });
@@ -431,7 +454,6 @@ const updateVitalSign = async (req, res) => {
       return res.status(404).json({ error: 'Record not found' });
     }
 
-    // Verifică dacă vital sign există
     const vital = await prisma.vitalSign.findFirst({
       where: { id: parseInt(vitalId), recordId: parseInt(recordId) }
     });
@@ -440,7 +462,6 @@ const updateVitalSign = async (req, res) => {
       return res.status(404).json({ error: 'Vital sign not found' });
     }
 
-    // Update vital sign
     const updatedVital = await prisma.vitalSign.update({
       where: { id: parseInt(vitalId) },
       data: {
@@ -462,17 +483,20 @@ const updateVitalSign = async (req, res) => {
   }
 };
 
-
 /**
- * DELETE VITAL SIGN - Șterge un vital sign
- * DELETE /api/records/:recordId/vitals/:vitalId
+ * Șterge un semn vital
+ * 
+ * @route DELETE /api/records/:recordId/vitals/:vitalId
+ * @param {string} recordId - ID-ul înregistrării
+ * @param {string} vitalId - ID-ul semnului vital
+ * @requires Authentication
+ * @returns {Object} { message }
  */
 const deleteVitalSign = async (req, res) => {
   try {
     const { recordId, vitalId } = req.params;
     const userId = req.user.userId;
 
-    // Verifică ownership prin record
     const record = await prisma.healthRecord.findFirst({
       where: { id: parseInt(recordId), userId }
     });
@@ -481,7 +505,6 @@ const deleteVitalSign = async (req, res) => {
       return res.status(404).json({ error: 'Record not found' });
     }
 
-    // Verifică dacă vital sign-ul există și aparține record-ului
     const vitalSign = await prisma.vitalSign.findFirst({
       where: {
         id: parseInt(vitalId),

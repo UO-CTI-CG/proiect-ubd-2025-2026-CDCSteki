@@ -1,18 +1,19 @@
 import jwt from 'jsonwebtoken';
 
 /**
- * Middleware pentru verificarea autentificării
- * Verifică dacă request-ul are un token JWT valid
- * Dacă da, adaugă userId în req.user
- * Dacă nu, returnează eroare 401/403
+ * Middleware pentru verificarea autentificării JWT
+ * Extrage și validează token-ul din Authorization header
+ * Adaugă userId în req.user dacă token-ul este valid
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ * @returns {void}
  */
 const authenticateToken = (req, res, next) => {
-  // 1. Extrage token-ul din header
-  // Format așteptat: "Bearer TOKEN_HERE"
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // ia partea după "Bearer "
+  const token = authHeader && authHeader.split(' ')[1];
 
-  // 2. Dacă nu există token, returnează 401 Unauthorized
   if (!token) {
     return res.status(401).json({ 
       error: 'Access denied. No token provided.' 
@@ -20,16 +21,10 @@ const authenticateToken = (req, res, next) => {
   }
 
   try {
-    // 3. Verifică token-ul cu JWT_SECRET
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // 4. Adaugă userId în request (îl putem folosi în controllers)
-    req.user = decoded; // decoded = { userId: 123 }
-    
-    // 5. Continuă la următorul middleware/controller
+    req.user = decoded;
     next();
   } catch (error) {
-    // Token invalid sau expirat
     return res.status(403).json({ 
       error: 'Invalid or expired token.' 
     });

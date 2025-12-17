@@ -1,22 +1,8 @@
-/**
- * PRISMA SCRIPTS - Query-uri utile și scripturi pentru DB
- * Rulează cu: npx ts-node src/lib/scripts.ts
- */
-
-// NOTĂ: Dacă folosești ENUM-ul TimeCategory, importul trebuie să includă tipurile:
-// import prisma, { TimeCategory } from './prisma.js'
-// Dacă NU folosești ENUM, folosește importul original:
 import prisma from './prisma.ts'
 
-/**
- * ============================================
- * 1. SEED DATA - Populează DB cu date dummy
- * ============================================
- */
 async function seedDatabase() {
   console.log('🌱 Starting database seed...')
 
-  // ... (Crearea utilizatorilor rămâne neschimbată)
   const users = await Promise.all([
     prisma.user.create({
       data: {
@@ -42,7 +28,6 @@ async function seedDatabase() {
   ])
   console.log(`✅ Created ${users.length} users`)
 
-  // Creează health records pentru primul user (ultimele 30 zile)
   const now = new Date()
   let recordsCreated = 0
   let vitalSignsCreated = 0
@@ -50,39 +35,35 @@ async function seedDatabase() {
   for (let i = 0; i < 30; i++) {
     const date = new Date(now)
     date.setDate(date.getDate() - i)
-    date.setHours(0, 0, 0, 0) // Reset time to midnight
+    date.setHours(0, 0, 0, 0)
 
-    // Creează record cu vital signs
-    const record = await prisma.healthRecord.create({
+    await prisma.healthRecord.create({
       data: {
         userId: users[0].id,
         date: date,
-        weight: 70 + Math.random() * 10, // 70-80 kg
-        steps: Math.floor(5000 + Math.random() * 10000), // 5000-15000 pași
-        sleepHours: 6 + Math.random() * 3, // 6-9 ore
+        weight: 70 + Math.random() * 10,
+        steps: Math.floor(5000 + Math.random() * 10000),
+        sleepHours: 6 + Math.random() * 3,
         notes: i % 5 === 0 ? 'Feeling great today!' : null,
-        // CORECȚIE: S-a rezolvat problema cu `vitalSigns` și s-au corectat numele câmpurilor
         vitalSigns: {
           create: [
-            // Morning vitals
             {
-              timestamp: new Date(date.getTime() + 8 * 60 * 60 * 1000), // 08:00
-              timeOfDay: 'morning', // Se folosește String conform schemei tale
-              heartRate: Math.floor(60 + Math.random() * 20), // 60-80 bpm
-              bloodPressureSystolic: Math.floor(110 + Math.random() * 20), // CORECT
-              bloodPressureDiastolic: Math.floor(70 + Math.random() * 15), // CORECT
-              temperature: 36.5 + Math.random() * 0.5, // Float, nu Math.floor
-              oxygenSaturation: Math.floor(95 + Math.random() * 4), // 95-99%
+              timestamp: new Date(date.getTime() + 8 * 60 * 60 * 1000),
+              timeOfDay: 'morning',
+              heartRate: Math.floor(60 + Math.random() * 20),
+              bloodPressureSystolic: Math.floor(110 + Math.random() * 20),
+              bloodPressureDiastolic: Math.floor(70 + Math.random() * 15),
+              temperature: 36.5 + Math.random() * 0.5,
+              oxygenSaturation: Math.floor(95 + Math.random() * 4),
             },
-            // Evening vitals
             {
-              timestamp: new Date(date.getTime() + 20 * 60 * 60 * 1000), // 20:00
-              timeOfDay: 'evening', // Se folosește String
-              heartRate: Math.floor(65 + Math.random() * 25), // 65-90 bpm
+              timestamp: new Date(date.getTime() + 20 * 60 * 60 * 1000),
+              timeOfDay: 'evening',
+              heartRate: Math.floor(65 + Math.random() * 25),
               bloodPressureSystolic: Math.floor(115 + Math.random() * 25),
               bloodPressureDiastolic: Math.floor(75 + Math.random() * 20),
               temperature: 36.8 + Math.random() * 0.5,
-              oxygenSaturation: Math.floor(96 + Math.random() * 4), // 96-100%
+              oxygenSaturation: Math.floor(96 + Math.random() * 4),
             }
           ]
         }
@@ -90,7 +71,7 @@ async function seedDatabase() {
     })
 
     recordsCreated++
-    vitalSignsCreated += 2 // morning + evening
+    vitalSignsCreated += 2
   }
 
   console.log(`✅ Created ${recordsCreated} health records`)
@@ -98,15 +79,9 @@ async function seedDatabase() {
   console.log('🎉 Database seeded successfully!')
 }
 
-/**
- * ============================================
- * 2. CLEAR DATABASE - Șterge toate datele
- * ============================================
- */
 async function clearDatabase() {
   console.log('🗑️  Clearing database...')
 
-  // Ștergem VitalSigns întâi din cauza cheilor străine
   const deletedVitalSigns = await prisma.vitalSign.deleteMany()
   const deletedRecords = await prisma.healthRecord.deleteMany()
   const deletedUsers = await prisma.user.deleteMany()
@@ -117,18 +92,12 @@ async function clearDatabase() {
   console.log('🎉 Database cleared successfully!')
 }
 
-/**
- * ============================================
- * 3. GET STATISTICS - Statistici generale
- * ============================================
- */
 async function getStats() {
   console.log('📊 Fetching database statistics...\n')
 
   const totalUsers = await prisma.user.count()
   const totalRecords = await prisma.healthRecord.count()
 
-  // Users cu cele mai multe records (Rămâne neschimbat)
   const topUsers = await prisma.user.findMany({
     select: {
       username: true,
@@ -145,7 +114,6 @@ async function getStats() {
     take: 5,
   })
 
-  // CORECȚIE: Statistici pe HealthRecord (câmpuri care sunt o dată pe zi)
   const avgRecordStats = await prisma.healthRecord.aggregate({
     _avg: {
       weight: true,
@@ -160,7 +128,6 @@ async function getStats() {
     },
   })
 
-  // ADĂUGARE: Statistici pe VitalSign (câmpuri care sunt de mai multe ori pe zi)
   const avgVitalStats = await prisma.vitalSign.aggregate({
     _avg: {
       heartRate: true,
@@ -185,7 +152,6 @@ async function getStats() {
   console.log(`  Steps: ${avgRecordStats._avg.steps?.toFixed(0)}`)
   console.log(`  Sleep: ${avgRecordStats._avg.sleepHours?.toFixed(2)} hours`)
   
-  // AFIȘARE: Statistici din VitalSign
   console.log('\nGlobal Averages (Vital Signs):')
   console.log(`  Heart Rate: ${avgVitalStats._avg.heartRate?.toFixed(0)} bpm`)
   console.log(`  BP Systolic: ${avgVitalStats._avg.bloodPressureSystolic?.toFixed(0)} mmHg`)
@@ -199,11 +165,6 @@ async function getStats() {
   console.log('='.repeat(50))
 }
 
-/**
- * ============================================
- * 4. LIST USERS - Afișează toți utilizatorii
- * ============================================
- */
 async function listUsers() {
   console.log('👥 Listing all users...\n')
 
@@ -225,15 +186,9 @@ async function listUsers() {
   })
 }
 
-/**
- * ============================================
- * 5. RECENT RECORDS - Ultimele înregistrări
- * ============================================
- */
 async function recentRecords(limit = 10) {
   console.log(`📝 Fetching last ${limit} health records...\n`)
 
-  // CORECȚIE: Include vitalSigns acum
   const records = await prisma.healthRecord.findMany({
     include: {
       user: {
@@ -242,7 +197,7 @@ async function recentRecords(limit = 10) {
           email: true,
         },
       },
-      vitalSigns: { // ADĂUGARE: Include relația VitalSign
+      vitalSigns: {
         orderBy: {
           timestamp: 'asc',
         },
@@ -262,7 +217,6 @@ async function recentRecords(limit = 10) {
     console.log(`${i + 1}. ${record.user.username} - ${record.date.toISOString().split('T')[0]}`)
     console.log(`   Weight: ${record.weight}kg | Steps: ${record.steps} | Sleep: ${record.sleepHours}h`)
     
-    // AFIȘARE: Semne Vitale
     if (record.vitalSigns.length > 0) {
       console.log(`   Vital Signs:`)
       console.log(`       ${dailyVitals}`)
@@ -273,11 +227,6 @@ async function recentRecords(limit = 10) {
   })
 }
 
-/**
- * ============================================
- * 6. DELETE USER - Șterge user specific
- * ============================================
- */
 async function deleteUser(email: string) {
   console.log(`🗑️  Deleting user with email: ${email}...`)
 
@@ -288,13 +237,7 @@ async function deleteUser(email: string) {
   console.log(`✅ Deleted user: ${user.username} (${user.email})`)
 }
 
-/**
- * ============================================
- * MAIN - Rulează scriptul
- * ============================================
- */
 async function main() {
-  // Parsează argumentele din command line
   const args = process.argv.slice(2)
   const command = args[0]
 
@@ -302,7 +245,7 @@ async function main() {
 
   switch (command) {
     case 'seed':
-      await clearDatabase() // Recomandat: curăță înainte de a popula
+      await clearDatabase()
       await seedDatabase()
       break
     case 'clear':
@@ -339,7 +282,6 @@ async function main() {
   console.log('\n')
 }
 
-// Rulează scriptul și închide conexiunea
 main()
   .catch((e) => {
     console.error('❌ Error:', e)
@@ -348,13 +290,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-
-/**
- * USAGE EXAMPLES:
- * * npx ts-node src/lib/scripts.ts seed           # Adaugă date dummy
- * npx ts-node src/lib/scripts.ts clear          # Șterge totul
- * npx ts-node src/lib/scripts.ts stats          # Statistici
- * npx ts-node src/lib/scripts.ts users          # Lista users
- * npx ts-node src/lib/scripts.ts recent 20      # Ultimele 20 records
- * npx ts-node src/lib/scripts.ts delete-user john@example.com
- */

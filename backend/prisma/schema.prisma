@@ -1,75 +1,60 @@
-// Configurare Prisma 7
 generator client {
   provider = "prisma-client-js"
 }
 
-// În Prisma 7, datasource NU mai are url aici
-// URL-ul se mută în prisma.config.ts
 datasource db {
   provider = "postgresql"
 }
 
-// Model pentru Utilizatori
 model User {
   id        Int      @id @default(autoincrement())
   username  String   @unique
   email     String   @unique
-  password  String   // Hash-uit cu bcrypt
+  password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  // Relație: un user are multe records
   records   HealthRecord[]
 }
 
-// Model pentru Înregistrări Zilnice de Sănătate
 model HealthRecord {
   id         Int      @id @default(autoincrement())
-  date       DateTime @default(now()) @db.Date // ← Doar data (fără oră)
-  weight     Float?   // kg (nullable = opțional)
-  steps      Int?     // număr pași
-  sleepHours Float?   // ore de somn
-  notes      String?  // notițe opționale
+  date       DateTime @default(now()) @db.Date
+  weight     Float?
+  steps      Int?
+  sleepHours Float?
+  notes      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   
-  // Relație: fiecare record aparține unui user
   userId     Int
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Relație: un record poate avea multiple măsurători vitale (dimineață, seară, etc.)
   vitalSigns VitalSign[]
   
-  // Index pentru căutări rapide
   @@index([userId, date])
 }
 
-// Model pentru Semne Vitale (măsurători multiple per zi)
 model VitalSign {
   id        Int      @id @default(autoincrement())
-  timestamp DateTime @default(now()) // Ora exactă a măsurătorii
-  timeOfDay String   // "morning", "afternoon", "evening", "night"
+  timestamp DateTime @default(now())
+  timeOfDay String   // morning, afternoon, evening, night
   
-  // Heart Rate (puls)
-  heartRate Int?     // bătăi/minut
+  heartRate Int?
   
-  // Blood Pressure (tensiune arterială)
-  bloodPressureSystolic  Int?  // Valoarea de sus (ex: 120 din 120/80)
-  bloodPressureDiastolic Int?  // Valoarea de jos (ex: 80 din 120/80)
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
   
-  // Bonus: alte vitale (opțional)
-  temperature Float?  // temperatura corporală (°C)
-  oxygenSaturation Int? // saturația oxigenului (%)
+  temperature Float?
+  oxygenSaturation Int?
   
-  notes     String?  // notițe specifice măsurătorii
+  notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  // Relație: fiecare vital sign aparține unui health record
   recordId  Int
   record    HealthRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
   
-  // Index pentru queries rapide
   @@index([recordId, timeOfDay])
   @@index([timestamp])
 }
