@@ -12,18 +12,36 @@ import prisma from '../lib/prisma.ts';
 const getAllRecords = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { limit = 30, sortBy = 'date' } = req.query;
+    const { limit, sortBy = 'date', startDate, endDate } = req.query;
 
-    const records = await prisma.healthRecord.findMany({
-      where: { userId },
+    // Construim obiectul de filtrare
+    const where = { userId };
+
+    // Adăugăm filtru de dată dacă este specificat
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) where.date.gte = new Date(startDate);
+      if (endDate) where.date.lte = new Date(endDate);
+    }
+
+    // Configurare query
+    const queryOptions = {
+      where,
       orderBy: { [sortBy]: 'desc' },
-      take: parseInt(limit),
       include: {
         vitalSigns: {
           orderBy: { timestamp: 'asc' }
         }
       }
-    });
+    };
+
+    // Aplicăm limita doar dacă este cerută explicit
+    // (Pentru grafice, de obicei scoatem limita sau punem una mare)
+    if (limit) {
+      queryOptions.take = parseInt(limit);
+    }
+
+    const records = await prisma.healthRecord.findMany(queryOptions);
 
     res.json({
       count: records.length,
@@ -91,6 +109,38 @@ const createRecord = async (req, res) => {
     const userId = req.user.userId;
     const { date, weight, steps, sleepHours, notes, vitalSigns } = req.body;
 
+    let startOfDay, endOfDay;
+    
+    if (date) {
+      startOfDay = new Date(`${date}T00:00:00.000Z`);
+      endOfDay = new Date(`${date}T23:59:59.999Z`);
+    } else {
+      const now = new Date();
+      startOfDay = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0));
+      endOfDay = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999));
+    }
+
+    if (startOfDay > new Date()) {
+       return res.status(400).json({ 
+        error: 'Cannot create records for future dates.' 
+      });
+    }
+
+    const existingRecord = await prisma.healthRecord.findFirst({
+      where: {
+        userId: userId,
+        date: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      }
+    });
+
+    if (existingRecord) {
+      return res.status(409).json({ 
+        error: 'A record for this date already exists. Please update the existing record instead.' 
+      });
+    }
     if (weight && weight <= 0) {
       return res.status(400).json({ error: 'Weight must be positive' });
     }
@@ -102,16 +152,22 @@ const createRecord = async (req, res) => {
     }
 
     if (vitalSigns && Array.isArray(vitalSigns)) {
+      const timeOfDays = vitalSigns.map(v => v.timeOfDay);
+      const uniqueTimes = new Set(timeOfDays);
+      if (uniqueTimes.size !== timeOfDays.length) {
+        return res.status(400).json({ 
+          error: 'Duplicate timeOfDay entries found. You can only have one entry per time of day.' 
+        });
+      }
+
       for (const vital of vitalSigns) {
         if (vital.heartRate && (vital.heartRate < 30 || vital.heartRate > 250)) {
           return res.status(400).json({ error: 'Heart rate must be between 30-250 bpm' });
         }
-        if (vital.bloodPressureSystolic && 
-           (vital.bloodPressureSystolic < 70 || vital.bloodPressureSystolic > 200)) {
+        if (vital.bloodPressureSystolic && (vital.bloodPressureSystolic < 70 || vital.bloodPressureSystolic > 200)) {
           return res.status(400).json({ error: 'Blood pressure systolic must be between 70-200' });
         }
-        if (vital.bloodPressureDiastolic && 
-           (vital.bloodPressureDiastolic < 40 || vital.bloodPressureDiastolic > 130)) {
+        if (vital.bloodPressureDiastolic && (vital.bloodPressureDiastolic < 40 || vital.bloodPressureDiastolic > 130)) {
           return res.status(400).json({ error: 'Blood pressure diastolic must be between 40-130' });
         }
         if (!vital.timeOfDay || !['morning', 'afternoon', 'evening', 'night'].includes(vital.timeOfDay)) {
@@ -123,7 +179,7 @@ const createRecord = async (req, res) => {
     const record = await prisma.healthRecord.create({
       data: {
         userId,
-        date: date ? new Date(date) : new Date(),
+        date: startOfDay, 
         weight: weight ? parseFloat(weight) : null,
         steps: steps ? parseInt(steps) : null,
         sleepHours: sleepHours ? parseFloat(sleepHours) : null,
@@ -302,7 +358,7 @@ const getStatistics = async (req, res) => {
     const sleepHours = records.map(r => r.sleepHours).filter(s => s !== null);
 
     const allVitalSigns = records.flatMap(r => r.vitalSigns);
-    
+
     const heartRates = allVitalSigns.map(v => v.heartRate).filter(h => h !== null);
     const systolicBP = allVitalSigns.map(v => v.bloodPressureSystolic).filter(b => b !== null);
     const diastolicBP = allVitalSigns.map(v => v.bloodPressureDiastolic).filter(b => b !== null);
@@ -328,7 +384,7 @@ const getStatistics = async (req, res) => {
       const hrs = vitals.map(v => v.heartRate).filter(h => h !== null);
       const sys = vitals.map(v => v.bloodPressureSystolic).filter(b => b !== null);
       const dia = vitals.map(v => v.bloodPressureDiastolic).filter(b => b !== null);
-      
+
       return {
         heartRate: calculateStats(hrs),
         bloodPressure: {
@@ -404,6 +460,19 @@ const addVitalSign = async (req, res) => {
 
     if (!timeOfDay || !['morning', 'afternoon', 'evening', 'night'].includes(timeOfDay)) {
       return res.status(400).json({ error: 'timeOfDay must be: morning, afternoon, evening, or night' });
+    }
+
+    const existingVital = await prisma.vitalSign.findFirst({
+      where: {
+        recordId: parseInt(id),
+        timeOfDay: timeOfDay
+      }
+    });
+
+    if (existingVital) {
+      return res.status(409).json({ 
+        error: `A vital sign for '${timeOfDay}' already exists for this record. Please edit the existing one.` 
+      });
     }
 
     const vitalSign = await prisma.vitalSign.create({

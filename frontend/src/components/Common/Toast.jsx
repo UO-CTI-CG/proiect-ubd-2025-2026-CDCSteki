@@ -1,5 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
+/**
+ * Toast Notification Component
+ * Afișează notificări temporare în colțul din dreapta sus
+ * 
+ * @param {string} message - Mesajul de afișat
+ * @param {string} type - Tipul notificării: success, error, warning, info
+ * @param {Function} onClose - Callback apelat la închidere
+ * @param {number} duration - Durata în ms (default: 3000)
+ */
 const Toast = ({ message, type = 'success', onClose, duration = 3000 }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -61,9 +70,14 @@ const Toast = ({ message, type = 'success', onClose, duration = 3000 }) => {
   );
 };
 
-// Hook pentru a folosi Toast-uri
-import { useState, useCallback } from 'react';
-
+/**
+ * Custom Hook pentru gestionarea Toast notifications
+ * 
+ * @returns {Object} { showToast, ToastContainer }
+ * @example
+ * const { showToast, ToastContainer } = useToast();
+ * showToast('Success!', 'success');
+ */
 export const useToast = () => {
   const [toast, setToast] = useState(null);
 

@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getProfile } from '../controllers/authController.js';
+import { register, login, getProfile, updateProfile, changePassword } from '../controllers/authController.js';
 import authenticateToken from '../middleware/auth.js';
 import { authProtection, arcjetMiddleware } from '../config/arcjet.js';
 
@@ -28,5 +28,8 @@ router.post('/login', arcjetMiddleware(authProtection), login);
  * @requires Authorization header: Bearer <token>
  */
 router.get('/profile', authenticateToken, getProfile);
+
+router.put('/profile', authenticateToken, updateProfile);   
+router.put('/change-password', authenticateToken, changePassword);
 
 export default router;

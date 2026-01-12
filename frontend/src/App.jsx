@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import AddRecord from './pages/Records/AddRecord';
 import RecordsList from './pages/Records/RecordsList';
 import RecordDetails from './pages/Records/RecordDetails';
+import Profile from './pages/Auth/profile';
 
 function App() {
   return (
@@ -55,7 +56,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            {/* ✨ RUTĂ NOUĂ - Edit Daily Metrics */}
             <Route
               path="/records/:id/edit"
               element={
@@ -65,9 +65,18 @@ function App() {
               }
             />
 
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Default redirect */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            
+
             {/* 404 - Catch all */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

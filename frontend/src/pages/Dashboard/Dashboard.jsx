@@ -6,6 +6,11 @@ import { WeightChart, StepsChart, HeartRateChart, BloodPressureChart } from '../
 import Loading from '../../components/Common/Loading';
 import { useToast } from '../../components/Common/Toast';
 
+/**
+ * Dashboard Page Component
+ * Afișează statistici de sănătate, grafice și acțiuni rapide
+ * Include period selector pentru filtrare date (week, month, year, all)
+ */
 const Dashboard = () => {
   const [statistics, setStatistics] = useState(null);
   const [recentRecords, setRecentRecords] = useState([]);
@@ -21,12 +26,52 @@ const Dashboard = () => {
     try {
       setLoading(true);
       
-      // Fetch statistics
       const statsData = await recordsAPI.getStatistics(period);
       setStatistics(statsData);
 
-      // Fetch recent records pentru grafice
-      const recordsData = await recordsAPI.getAll({ limit: 30, sortBy: 'date' });
+      const now = new Date();
+      let startDate = null;
+      let endDate = new Date(); 
+      let limit = 1000;
+
+      endDate.setHours(23, 59, 59, 999);
+
+      switch (period) {
+        case 'week':
+          startDate = new Date();
+          startDate.setDate(now.getDate() - 7);
+          startDate.setHours(0, 0, 0, 0); 
+          limit = 7;
+          break;
+        case 'month':
+          startDate = new Date();
+          startDate.setMonth(now.getMonth() - 1);
+          startDate.setHours(0, 0, 0, 0);
+          limit = 31;
+          break;
+        case 'year':
+          startDate = new Date();
+          startDate.setFullYear(now.getFullYear() - 1);
+          startDate.setHours(0, 0, 0, 0);
+          limit = 366;
+          break;
+        case 'all':
+          startDate = null;
+          endDate = null; 
+          limit = 1000;
+          break;
+        default:
+          startDate = new Date();
+          startDate.setMonth(now.getMonth() - 1);
+      }
+
+      const recordsData = await recordsAPI.getAll({ 
+        sortBy: 'date',
+        startDate: startDate ? startDate.toISOString() : undefined,
+        endDate: endDate ? endDate.toISOString() : undefined, 
+        limit: limit 
+      });
+
       setRecentRecords(recordsData.records);
 
     } catch (error) {
@@ -37,52 +82,85 @@ const Dashboard = () => {
     }
   };
 
-  // Prepare data pentru grafice
+  /**
+   * Pregătește datele pentru afișare în grafice
+   * Transformă înregistrările în format compatibil cu Recharts
+   * 
+   * @returns {Object} { weightData, stepsData, heartRateData, bloodPressureData }
+   */
   const prepareChartData = () => {
-  if (!recentRecords || recentRecords.length === 0) {
-    return { 
-      weightData: [], 
-      stepsData: [], 
-      heartRateData: [], 
-      bloodPressureData: [] 
-    };
-  }
+    if (!recentRecords || recentRecords.length === 0) {
+      return { 
+        weightData: [], 
+        stepsData: [], 
+        heartRateData: [], 
+        bloodPressureData: [] 
+      };
+    }
 
-  const sortedRecords = [...recentRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const sortedRecords = [...recentRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const weightData = sortedRecords.map(r => ({
-    date: new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    weight: r.weight
-  })).filter(d => d.weight);
+    const weightData = sortedRecords.map(r => ({
+      date: new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      weight: r.weight
+    })).filter(d => d.weight);
 
-  const stepsData = sortedRecords.map(r => ({
-    date: new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    steps: r.steps
-  })).filter(d => d.steps);
+    const stepsData = sortedRecords.map(r => ({
+      date: new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      steps: r.steps
+    })).filter(d => d.steps);
 
-  const heartRateData = sortedRecords.map(r => {
+    const heartRateData = sortedRecords.map(r => {
+      const morning = r.vitalSigns?.find(v => v.timeOfDay === 'morning');
+      const afternoon = r.vitalSigns?.find(v => v.timeOfDay === 'afternoon');
+      const evening = r.vitalSigns?.find(v => v.timeOfDay === 'evening');
+      const night = r.vitalSigns?.find(v => v.timeOfDay === 'night');
+
+      if (!morning && !afternoon && !evening && !night) return null;
+
+      return {
+        date: new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        morning: morning?.heartRate,
+        afternoon: afternoon?.heartRate,
+        evening: evening?.heartRate,
+        night: night?.heartRate
+      };
+    }).filter(d => d !== null);
+
+    const bloodPressureData = sortedRecords.map(r => {
     const morning = r.vitalSigns?.find(v => v.timeOfDay === 'morning');
+    const afternoon = r.vitalSigns?.find(v => v.timeOfDay === 'afternoon');
     const evening = r.vitalSigns?.find(v => v.timeOfDay === 'evening');
-    
-    return {
-      date: new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      morning: morning?.heartRate,
-      evening: evening?.heartRate
-    };
-  }).filter(d => d.morning || d.evening);
+    const night = r.vitalSigns?.find(v => v.timeOfDay === 'night');
 
-  const bloodPressureData = sortedRecords.map(r => {
-    const morningVital = r.vitalSigns?.find(v => v.timeOfDay === 'morning');
-    
+    const hasData = (
+      morning?.bloodPressureSystolic || 
+      afternoon?.bloodPressureSystolic || 
+      evening?.bloodPressureSystolic || 
+      night?.bloodPressureSystolic
+    );
+
+    if (!hasData) return null;
+
     return {
       date: new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      systolic: morningVital?.bloodPressureSystolic,
-      diastolic: morningVital?.bloodPressureDiastolic
+
+      morningSys: morning?.bloodPressureSystolic,
+      morningDia: morning?.bloodPressureDiastolic,
+
+      afternoonSys: afternoon?.bloodPressureSystolic,
+      afternoonDia: afternoon?.bloodPressureDiastolic,
+
+      eveningSys: evening?.bloodPressureSystolic,
+      eveningDia: evening?.bloodPressureDiastolic,
+
+      nightSys: night?.bloodPressureSystolic,
+      nightDia: night?.bloodPressureDiastolic,
     };
-  }).filter(d => d.systolic || d.diastolic);
+  }).filter(d => d !== null);
 
   return { weightData, stepsData, heartRateData, bloodPressureData };
-};
+  };
 
   const { weightData, stepsData, heartRateData, bloodPressureData } = prepareChartData();
 
@@ -97,13 +175,11 @@ const Dashboard = () => {
       <ToastContainer />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="mt-2 text-gray-600">Welcome back! Here's your health overview.</p>
         </div>
 
-        {/* Period Selector */}
         <div className="mb-6 flex items-center space-x-4">
           <span className="text-sm font-medium text-gray-700">Period:</span>
           <div className="flex space-x-2">
@@ -123,7 +199,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Stats Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
             title="Average Weight"
@@ -174,7 +249,6 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {weightData.length > 0 && <WeightChart data={weightData} />}
           {stepsData.length > 0 && <StepsChart data={stepsData} />}
@@ -182,7 +256,6 @@ const Dashboard = () => {
           {bloodPressureData.length > 0 && <BloodPressureChart data={bloodPressureData} />}
         </div>
 
-        {/* Quick Actions */}
         <div className="bg-white rounded-xl shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -1,11 +1,8 @@
 import axios from 'axios';
 
-// Base URL pentru backend
-// În development, Vite proxy gestionează automat /api
-// În production, folosește VITE_API_URL din .env
+/** Configurare URL backend (din .env sau default) */
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-// Creează instanță axios cu configurări default
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -13,7 +10,7 @@ const api = axios.create({
   },
 });
 
-// Interceptor pentru a adăuga token-ul la fiecare request
+/** Interceptor: Atașează token-ul JWT la fiecare request */
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -27,11 +24,10 @@ api.interceptors.request.use(
   }
 );
 
-// Interceptor pentru a gestiona erorile
+/** Interceptor: Deloghează utilizatorul la eroare 401/403 */
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Dacă token-ul e invalid/expirat, logout automat
     if (error.response?.status === 401 || error.response?.status === 403) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -41,15 +37,12 @@ api.interceptors.response.use(
   }
 );
 
-// ============================================
-// AUTH API
-// ============================================
+//Auth Endpoints
 
 export const authAPI = {
   /**
-   * Register new user
-   * @param {Object} userData - { username, email, password }
-   * @returns {Promise<Object>} { token, user }
+   * Înregistrează utilizator nou
+   * @param {Object} userData { username, email, password }
    */
   register: async (userData) => {
     const response = await api.post('/auth/register', userData);
@@ -57,52 +50,51 @@ export const authAPI = {
   },
 
   /**
-   * Login user
-   * @param {Object} credentials - { email, password }
-   * @returns {Promise<Object>} { token, user }
+   * Autentifică utilizator
+   * @param {Object} credentials { email, password }
    */
   login: async (credentials) => {
     const response = await api.post('/auth/login', credentials);
     return response.data;
   },
 
-  /**
-   * Get current user profile
-   * @returns {Promise<Object>} { user }
-   */
+  /** Obține profilul curent */
   getProfile: async () => {
     const response = await api.get('/auth/profile');
     return response.data;
   },
+
+  updateProfile: async (data) => {
+    const response = await api.put('/auth/profile', data);
+    return response.data;
+  },
+
+  changePassword: async (data) => {
+    const response = await api.put('/auth/change-password', data);
+    return response.data;
+  }
 };
 
-// ============================================
-// RECORDS API
-// ============================================
+// Records Endpoints
 
 export const recordsAPI = {
   /**
-   * Get all records for current user
-   * @param {Object} params - { limit, sortBy }
-   * @returns {Promise<Object>} { count, records[] }
+   * Obține lista de înregistrări
+   * @param {Object} params { limit, sortBy }
    */
   getAll: async (params = {}) => {
     const response = await api.get('/records', { params });
     return response.data;
   },
 
-  /**
-   * Get one record by ID
-   * @param {number} id - Record ID
-   * @returns {Promise<Object>} { record }
-   */
+  /** Obține o înregistrare după ID */
   getById: async (id) => {
     const response = await api.get(`/records/${id}`);
     return response.data;
   },
 
   /**
-   * Create new record (cu vital signs opționale)
+   * Creează înregistrare nouă (opțional cu vital signs)
    * @param {Object} recordData - { date, weight, steps, sleepHours, notes, vitalSigns: [] }
    * @returns {Promise<Object>} { message, record }
    */

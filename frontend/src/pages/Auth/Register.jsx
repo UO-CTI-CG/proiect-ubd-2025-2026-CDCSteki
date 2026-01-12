@@ -3,6 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/Common/Toast';
 
+/**
+ * Register Page Component
+ * Formular de înregistrare pentru utilizatori noi
+ * Include validare client-side și auto-login după înregistrare
+ * Redirecționează către /dashboard după succes
+ */
 const Register = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -16,7 +22,6 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validări client-side
     if (password !== confirmPassword) {
       showToast('Passwords do not match', 'error');
       return;
@@ -46,9 +51,7 @@ const Register = () => {
       <ToastContainer />
       
       <div className="max-w-md w-full">
-        {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
-          {/* Header */}
           <div className="text-center">
             <div className="mx-auto w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mb-4">
               <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,9 +62,7 @@ const Register = () => {
             <p className="mt-2 text-sm text-gray-600">Start tracking your health today</p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Username */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
                 Username
@@ -84,7 +85,6 @@ const Register = () => {
               </div>
             </div>
 
-            {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email address
@@ -107,7 +107,6 @@ const Register = () => {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
@@ -132,7 +131,6 @@ const Register = () => {
               <p className="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
             </div>
 
-            {/* Confirm Password */}
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
                 Confirm Password
@@ -155,7 +153,6 @@ const Register = () => {
               </div>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
@@ -175,7 +172,6 @@ const Register = () => {
             </button>
           </form>
 
-          {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
@@ -185,7 +181,6 @@ const Register = () => {
             </div>
           </div>
 
-          {/* Login Link */}
           <div className="text-center">
             <Link
               to="/login"
@@ -196,7 +191,6 @@ const Register = () => {
           </div>
         </div>
 
-        {/* Footer */}
         <p className="mt-8 text-center text-sm text-gray-600">
           By creating an account, you agree to our Terms and Privacy Policy
         </p>

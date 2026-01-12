@@ -148,8 +148,101 @@ const getProfile = async (req, res) => {
   }
 };
 
+/**
+ * Actualizează profilul utilizatorului (Username)
+ * * @route PUT /api/auth/profile
+ */
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { username } = req.body;
+
+    if (!username || username.trim() === '') {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    // Opțional: Verificăm dacă username-ul este luat deja de altcineva
+    const existingUser = await prisma.user.findFirst({
+      where: { 
+        username: username,
+        NOT: { id: userId } // Excludem userul curent
+      }
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ error: 'Username is already taken' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { username },
+    });
+
+    // Returnăm userul fără parolă
+    const { password: _, ...userWithoutPassword } = updatedUser;
+    
+    res.json({ 
+      message: 'Profile updated successfully', 
+      user: userWithoutPassword 
+    });
+
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Could not update profile' });
+  }
+};
+
+/**
+ * Schimbă parola utilizatorului
+ * * @route PUT /api/auth/change-password
+ */
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Both current and new passwords are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    // 1. Găsim userul pentru a lua parola hash-uită curentă
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // 2. Verificăm parola veche
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Incorrect current password' });
+    }
+
+    // 3. Hash parola nouă
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // 4. Update în DB
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ message: 'Password changed successfully' });
+
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Could not change password' });
+  }
+};
+
 export {
   register,
   login,
-  getProfile
+  getProfile,
+  updateProfile,
+  changePassword
 };

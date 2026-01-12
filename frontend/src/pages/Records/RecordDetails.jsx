@@ -4,6 +4,11 @@ import { recordsAPI, vitalSignsAPI } from '../../services/api';
 import Loading from '../../components/Common/Loading';
 import { useToast } from '../../components/Common/Toast';
 
+/**
+ * Componenta RecordDetails
+ * Afișează metricile zilnice și gestionează lista de semne vitale.
+ */
+
 const RecordDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -394,7 +399,8 @@ const AddVitalModal = ({ recordId, onClose, onSuccess, showToast }) => {
       showToast('Vital sign added successfully', 'success');
       onSuccess();
     } catch (error) {
-      showToast('Failed to add vital sign', 'error');
+      const message = error.response?.data?.error || 'Failed to add vital sign';
+      showToast(message, 'error');
     } finally {
       setLoading(false);
     }

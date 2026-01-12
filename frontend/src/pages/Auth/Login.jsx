@@ -3,6 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/Common/Toast';
 
+/**
+ * Login Page Component
+ * Formular de autentificare pentru utilizatori existenți
+ * Redirecționează către /dashboard după login cu succes
+ */
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,9 +37,7 @@ const Login = () => {
       <ToastContainer />
       
       <div className="max-w-md w-full">
-        {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
-          {/* Header */}
           <div className="text-center">
             <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center mb-4">
               <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -45,9 +48,7 @@ const Login = () => {
             <p className="mt-2 text-sm text-gray-600">Sign in to continue to Health Tracker</p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email address
@@ -70,7 +71,6 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
@@ -93,7 +93,6 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
@@ -113,7 +112,6 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
@@ -123,7 +121,6 @@ const Login = () => {
             </div>
           </div>
 
-          {/* Register Link */}
           <div className="text-center">
             <Link
               to="/register"
@@ -134,7 +131,6 @@ const Login = () => {
           </div>
         </div>
 
-        {/* Footer */}
         <p className="mt-8 text-center text-sm text-gray-600">
           Your health data is encrypted and secure
         </p>

@@ -4,22 +4,32 @@ import { recordsAPI } from '../../services/api';
 import { useToast } from '../../components/Common/Toast';
 import Loading from '../../components/Common/Loading';
 
+/**
+ * AddRecord Page Component
+ * 
+ * Formular pentru adăugare/editare înregistrări de sănătate.
+ * - ADD mode: permite introducere daily metrics + vital signs
+ * - EDIT mode: permite editare doar daily metrics (weight, steps, sleep, notes)
+ * 
+ * Vital signs se pot edita separat din pagina de detalii.
+ * 
+ * @component
+ * @returns {JSX.Element} Formular pentru gestionarea înregistrărilor de sănătate
+ */
 const AddRecord = () => {
-  const { id } = useParams(); // Dacă există id, suntem în modul EDIT
+  const { id } = useParams();
   const isEditMode = !!id;
   const navigate = useNavigate();
   const { showToast, ToastContainer } = useToast();
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
 
-  // Record data - doar daily metrics
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [weight, setWeight] = useState('');
   const [steps, setSteps] = useState('');
   const [sleepHours, setSleepHours] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Vital Signs - doar pentru ADD mode
   const [vitalSigns, setVitalSigns] = useState([
     { timeOfDay: 'morning', heartRate: '', bloodPressureSystolic: '', bloodPressureDiastolic: '', temperature: '', oxygenSaturation: '', notes: '' }
   ]);
@@ -30,11 +40,18 @@ const AddRecord = () => {
     }
   }, [id]);
 
+  /**
+   * Încarcă datele înregistrării existente pentru editare
+   * Populează doar daily metrics (weight, steps, sleep, notes)
+   * 
+   * @async
+   * @function fetchRecord
+   * @returns {Promise<void>}
+   */
   const fetchRecord = async () => {
     try {
       const data = await recordsAPI.getById(id);
       
-      // Încarcă doar daily metrics
       setDate(data.record.date.split('T')[0]);
       setWeight(data.record.weight || '');
       setSteps(data.record.steps || '');
@@ -48,6 +65,13 @@ const AddRecord = () => {
     }
   };
 
+  /**
+   * Adaugă un nou formular de vital signs la listă
+   * Default: evening time of day
+   * 
+   * @function addVitalSign
+   * @returns {void}
+   */
   const addVitalSign = () => {
     setVitalSigns([
       ...vitalSigns,
@@ -55,22 +79,47 @@ const AddRecord = () => {
     ]);
   };
 
+  /**
+   * Elimină un formular de vital signs din listă
+   * 
+   * @function removeVitalSign
+   * @param {number} index - Indexul elementului de eliminat
+   * @returns {void}
+   */
   const removeVitalSign = (index) => {
     setVitalSigns(vitalSigns.filter((_, i) => i !== index));
   };
 
+  /**
+   * Actualizează un câmp specific dintr-un vital sign
+   * 
+   * @function updateVitalSign
+   * @param {number} index - Indexul vital sign-ului
+   * @param {string} field - Numele câmpului de actualizat
+   * @param {string|number} value - Noua valoare
+   * @returns {void}
+   */
   const updateVitalSign = (index, field, value) => {
     const updated = [...vitalSigns];
     updated[index][field] = value;
     setVitalSigns(updated);
   };
 
+  /**
+   * Handler pentru submit formular
+   * - ADD mode: salvează daily metrics + vital signs (dacă sunt completate)
+   * - EDIT mode: actualizează doar daily metrics
+   * 
+   * @async
+   * @function handleSubmit
+   * @param {React.FormEvent} e - Event object
+   * @returns {Promise<void>}
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
 
     try {
-      // Prepare data - doar daily metrics
       const recordData = {
         date,
         weight: weight ? parseFloat(weight) : null,
@@ -79,7 +128,6 @@ const AddRecord = () => {
         notes: notes || null
       };
 
-      // Adaugă vital signs doar dacă suntem în ADD mode
       if (!isEditMode) {
         recordData.vitalSigns = vitalSigns
           .filter(v => v.heartRate || v.bloodPressureSystolic || v.bloodPressureDiastolic || v.temperature || v.oxygenSaturation)
@@ -119,7 +167,6 @@ const AddRecord = () => {
       <ToastContainer />
       
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
             {isEditMode ? 'Edit Daily Metrics' : 'Add Health Record'}
@@ -132,7 +179,6 @@ const AddRecord = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info Card */}
           <div className="bg-white rounded-xl shadow-md p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
               <svg className="w-6 h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -142,7 +188,6 @@ const AddRecord = () => {
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
                 <input
@@ -155,7 +200,6 @@ const AddRecord = () => {
                 />
               </div>
 
-              {/* Weight */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Weight (kg)</label>
                 <input
@@ -168,7 +212,6 @@ const AddRecord = () => {
                 />
               </div>
 
-              {/* Steps */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Steps</label>
                 <input
@@ -180,7 +223,6 @@ const AddRecord = () => {
                 />
               </div>
 
-              {/* Sleep Hours */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Sleep Hours</label>
                 <input
@@ -194,7 +236,6 @@ const AddRecord = () => {
               </div>
             </div>
 
-            {/* Notes */}
             <div className="mt-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
               <textarea
@@ -207,7 +248,6 @@ const AddRecord = () => {
             </div>
           </div>
 
-          {/* Vital Signs Card - doar în ADD mode */}
           {!isEditMode && (
             <div className="bg-white rounded-xl shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
@@ -242,7 +282,6 @@ const AddRecord = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Time of Day */}
                     <div className="md:col-span-3">
                       <label className="block text-sm font-medium text-gray-700 mb-2">Time of Day</label>
                       <select
@@ -257,7 +296,6 @@ const AddRecord = () => {
                       </select>
                     </div>
 
-                    {/* Heart Rate */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Heart Rate (bpm)
@@ -271,7 +309,6 @@ const AddRecord = () => {
                       />
                     </div>
 
-                    {/* BP Systolic */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         BP Systolic (mmHg)
@@ -285,7 +322,6 @@ const AddRecord = () => {
                       />
                     </div>
 
-                    {/* BP Diastolic */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         BP Diastolic (mmHg)
@@ -299,7 +335,6 @@ const AddRecord = () => {
                       />
                     </div>
 
-                    {/* Temperature */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Temperature (°C)
@@ -314,7 +349,6 @@ const AddRecord = () => {
                       />
                     </div>
 
-                    {/* Oxygen Saturation */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         SpO2 (%)
@@ -328,7 +362,6 @@ const AddRecord = () => {
                       />
                     </div>
 
-                    {/* Vital Notes */}
                     <div className="md:col-span-3">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Notes (optional)
@@ -347,7 +380,6 @@ const AddRecord = () => {
             </div>
           )}
 
-          {/* Info message în Edit mode */}
           {isEditMode && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-start">
@@ -364,7 +396,6 @@ const AddRecord = () => {
             </div>
           )}
 
-          {/* Submit Buttons */}
           <div className="flex items-center justify-end space-x-4">
             <button
               type="button"

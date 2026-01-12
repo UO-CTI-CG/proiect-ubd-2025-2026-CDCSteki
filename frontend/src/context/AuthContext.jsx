@@ -1,10 +1,16 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
 
-// Creează Context
 const AuthContext = createContext(null);
 
-// Hook pentru a folosi Auth Context
+/**
+ * Custom Hook pentru accesarea Auth Context
+ * 
+ * @returns {Object} { user, token, loading, login, register, logout, isAuthenticated }
+ * @throws {Error} Dacă este folosit în afara AuthProvider
+ * @example
+ * const { user, login, logout, isAuthenticated } = useAuth();
+ */
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -13,13 +19,18 @@ export const useAuth = () => {
   return context;
 };
 
-// Provider Component
+/**
+ * Auth Provider Component
+ * Gestionează starea de autentificare la nivel global
+ * Sincronizează token-ul și user-ul cu localStorage
+ * 
+ * @param {Object} children - Componente copil
+ */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // La mount, verifică dacă există token în localStorage
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
@@ -32,15 +43,16 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Login user
-   * @param {string} email 
-   * @param {string} password 
+   * Autentifică utilizatorul
+   * 
+   * @param {string} email - Email-ul utilizatorului
+   * @param {string} password - Parola utilizatorului
+   * @returns {Object} { success: boolean, error?: string }
    */
   const login = async (email, password) => {
     try {
       const data = await authAPI.login({ email, password });
       
-      // Salvează în state și localStorage
       setToken(data.token);
       setUser(data.user);
       localStorage.setItem('token', data.token);
@@ -54,16 +66,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Register new user
-   * @param {string} username 
-   * @param {string} email 
-   * @param {string} password 
+   * Înregistrează utilizator nou și autentifică automat
+   * 
+   * @param {string} username - Username-ul utilizatorului
+   * @param {string} email - Email-ul utilizatorului
+   * @param {string} password - Parola utilizatorului
+   * @returns {Object} { success: boolean, error?: string }
    */
   const register = async (username, email, password) => {
     try {
       const data = await authAPI.register({ username, email, password });
       
-      // Auto-login după register
       setToken(data.token);
       setUser(data.user);
       localStorage.setItem('token', data.token);
@@ -77,7 +90,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Logout user
+   * Deautentifică utilizatorul și curăță localStorage
    */
   const logout = () => {
     setToken(null);
@@ -87,10 +100,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Check if user is authenticated
+   * Verifică dacă utilizatorul este autentificat
+   * 
+   * @returns {boolean} True dacă există token și user
    */
   const isAuthenticated = () => {
     return !!token && !!user;
+  };
+
+  const updateUser = (userData) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const value = {
@@ -99,6 +119,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
+    updateUser,
     logout,
     isAuthenticated,
   };

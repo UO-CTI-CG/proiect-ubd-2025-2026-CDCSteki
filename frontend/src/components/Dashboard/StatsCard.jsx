@@ -1,3 +1,14 @@
+/**
+ * Stats Card Component
+ * Afișează o statistică cu icon, valoare și trend opțional
+ * 
+ * @param {string} title - Titlul statisticii
+ * @param {number} value - Valoarea statisticii
+ * @param {string} unit - Unitatea de măsură (kg, bpm, etc.)
+ * @param {JSX.Element} icon - Icon SVG de afișat
+ * @param {string} color - Culoarea gradient-ului: primary, purple, pink, green, orange, red
+ * @param {number} trend - Procentaj de creștere/scădere față de săptămâna trecută
+ */
 const StatsCard = ({ title, value, unit, icon, color = 'primary', trend }) => {
   const colors = {
     primary: 'from-primary-500 to-primary-600',
