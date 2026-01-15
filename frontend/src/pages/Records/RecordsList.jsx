@@ -229,7 +229,7 @@ const RecordsList = () => {
                       </div>
                     </div>
 
-                    {/* Stats Grid - ACUM INCLUDE SI SLEEP */}
+                    {/* Stats Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {record.weight && (
                         <div className="bg-gray-50 p-3 rounded-lg">
@@ -245,7 +245,7 @@ const RecordsList = () => {
                         </div>
                       )}
 
-                      {/* --- AICI AM ADAUGAT SLEEP --- */}
+                      {/* --- SLEEP --- */}
                       {record.sleepHours && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <span className="text-xs text-gray-500 block">Sleep</span>
